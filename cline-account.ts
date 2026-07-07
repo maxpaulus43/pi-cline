@@ -21,6 +21,10 @@ export type ClineAccountUser = {
     organizations?: ClineAccountOrganization[];
 };
 
+type ClineAccountBalance = {
+    balance?: number;
+};
+
 function clineUrl(path: string): string {
     return new URL(path, API_BASE_URL).toString();
 }
@@ -136,8 +140,61 @@ async function switchClineOrganization(
     }
 }
 
+function formatCreditBalance(value: number | undefined): string | undefined {
+    if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+    return `$${(value / 1_000_000).toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })}`;
+}
+
+async function fetchPersonalBalance(
+    token: string,
+    userId: string,
+): Promise<number | undefined> {
+    const response = await fetch(
+        clineUrl(`/api/v1/users/${encodeURIComponent(userId)}/balance`),
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                ...headers(),
+            },
+        },
+    );
+    return (await readJson<ClineAccountBalance>(response)).balance;
+}
+
+async function fetchOrganizationBalance(
+    token: string,
+    organizationId: string,
+): Promise<number | undefined> {
+    const response = await fetch(
+        clineUrl(
+            `/api/v1/organizations/${encodeURIComponent(organizationId)}/balance`,
+        ),
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                ...headers(),
+            },
+        },
+    );
+    return (await readJson<ClineAccountBalance>(response)).balance;
+}
+
+async function fetchBalanceText(
+    fetchBalance: () => Promise<number | undefined>,
+): Promise<string | undefined> {
+    try {
+        return formatCreditBalance(await fetchBalance());
+    } catch {
+        return undefined;
+    }
+}
+
 function formatOrganizationLabel(
     organization: ClineAccountOrganization,
+    balanceText?: string,
 ): string | undefined {
     const organizationId = organization.organizationId?.trim();
     if (!organizationId) return undefined;
@@ -145,13 +202,15 @@ function formatOrganizationLabel(
     const roleText = organization.roles?.length
         ? ` (${organization.roles.join(", ")})`
         : "";
+    const balance = balanceText ? ` — ${balanceText}` : "";
     return `${
         organization.active ? "✓" : " "
-    } ${name}${roleText} — ${organizationId}`;
+    } ${name}${roleText}${balance} — ${organizationId}`;
 }
 
-function personalAccountLabel(active: boolean): string {
-    return `${active ? "✓" : " "} Personal account`;
+function personalAccountLabel(active: boolean, balanceText?: string): string {
+    const balance = balanceText ? ` — ${balanceText}` : "";
+    return `${active ? "✓" : " "} Personal account${balance}`;
 }
 
 type ClineAccountChoice = {
@@ -167,10 +226,28 @@ async function loadClineAccountChoices(
     const organizations = me.organizations ?? [];
     const activeOrganization =
         organizations.find((organization) => organization.active) ?? null;
+    const userId = me.id?.trim();
+    const [personalBalanceText, organizationBalanceTexts] = await Promise.all([
+        userId
+            ? fetchBalanceText(() => fetchPersonalBalance(token, userId))
+            : Promise.resolve(undefined),
+        Promise.all(
+            organizations.map(async (organization) => {
+                const organizationId = organization.organizationId?.trim();
+                if (!organizationId) return undefined;
+                return fetchBalanceText(() =>
+                    fetchOrganizationBalance(token, organizationId),
+                );
+            }),
+        ),
+    ]);
     const organizationChoices = organizations
-        .map((organization) => {
+        .map((organization, index) => {
             const organizationId = organization.organizationId?.trim();
-            const label = formatOrganizationLabel(organization);
+            const label = formatOrganizationLabel(
+                organization,
+                organizationBalanceTexts[index],
+            );
             if (!organizationId || !label) return undefined;
             return { id: organizationId, label, organization };
         })
@@ -179,7 +256,10 @@ async function loadClineAccountChoices(
     return [
         {
             id: PERSONAL_ACCOUNT_ID,
-            label: personalAccountLabel(!activeOrganization),
+            label: personalAccountLabel(
+                !activeOrganization,
+                personalBalanceText,
+            ),
             organization: null,
         },
         ...organizationChoices,
