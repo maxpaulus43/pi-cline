@@ -1,0 +1,22 @@
+{
+  "name": "pi-cline",
+  "version": "0.1.0",
+  "description": "Cline OAuth provider extension for pi.",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi-extension"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "index.ts"
+  ]
+}
