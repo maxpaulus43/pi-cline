@@ -59,17 +59,6 @@ type WorkOSTokenResponse = {
     error_description?: string;
 };
 
-type ClineModelEntry = {
-    id: string;
-    name?: string;
-    description?: string;
-};
-
-type ClineModelsPayload = {
-    recommended?: ClineModelEntry[];
-    free?: ClineModelEntry[];
-};
-
 type ModelsDevModel = {
     name?: string;
     tool_call?: boolean;
@@ -380,14 +369,6 @@ function modelFromModelsDev(modelId: string, model: ModelsDevModel): PiModel {
     };
 }
 
-function modelFromClineEntry(entry: ClineModelEntry): PiModel {
-    return {
-        id: entry.id,
-        name: entry.name ?? entry.id,
-        ...DEFAULT_MODEL,
-    };
-}
-
 function isActiveToolModel(model: ModelsDevModel): boolean {
     return model.tool_call === true && model.status !== "deprecated";
 }
@@ -411,21 +392,6 @@ function preferClineCanonicalIds(models: PiModel[]): PiModel[] {
         if (!model.id.startsWith("z-ai/")) return true;
         return !ids.has(`zai/${model.id.slice("z-ai/".length)}`);
     });
-}
-
-async function fetchRecommendedClineModels(): Promise<PiModel[]> {
-    const response = await fetch(
-        clineUrl("/api/v1/ai/cline/recommended-models"),
-    );
-    if (!response.ok) {
-        throw new Error(
-            `Failed to fetch Cline recommended models: ${await readError(response)}`,
-        );
-    }
-    const payload = (await response.json()) as ClineModelsPayload;
-    return [...(payload.recommended ?? []), ...(payload.free ?? [])].map(
-        modelFromClineEntry,
-    );
 }
 
 async function readCachedModelsDev(): Promise<ModelsDevPayload | undefined> {
@@ -487,35 +453,10 @@ async function fetchModelsDevClineModels(): Promise<PiModel[]> {
     );
 }
 
-async function fetchClineModels(): Promise<PiModel[]> {
-    const [catalogResult, recommendedResult] = await Promise.allSettled([
-        fetchModelsDevClineModels(),
-        fetchRecommendedClineModels(),
-    ]);
-
-    const catalogModels =
-        catalogResult.status === "fulfilled" ? catalogResult.value : [];
-    const recommendedModels =
-        recommendedResult.status === "fulfilled" ? recommendedResult.value : [];
-
-    if (catalogModels.length === 0 && recommendedModels.length === 0) {
-        if (catalogResult.status === "rejected") throw catalogResult.reason;
-        if (recommendedResult.status === "rejected") {
-            throw recommendedResult.reason;
-        }
-    }
-
-    const byId = new Map<string, PiModel>();
-    for (const model of [...recommendedModels, ...catalogModels]) {
-        byId.set(model.id, { ...byId.get(model.id), ...model });
-    }
-    return [...byId.values()];
-}
-
 export default async function (pi: ExtensionAPI) {
     let models: PiModel[];
     try {
-        models = await fetchClineModels();
+        models = await fetchModelsDevClineModels();
     } catch (error) {
         console.warn(
             `[cline-oauth] ${error instanceof Error ? error.message : String(error)}`,
