@@ -17,6 +17,7 @@
         "@earendil-works/pi-coding-agent": "*"
     },
     "files": [
-        "index.ts"
+        "index.ts",
+        "cline-account.ts"
     ]
 }

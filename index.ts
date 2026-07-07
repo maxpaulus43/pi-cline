@@ -6,6 +6,10 @@ import type {
     OAuthCredentials,
     OAuthLoginCallbacks,
 } from "@earendil-works/pi-ai";
+import {
+    registerClineAccountCommand,
+    selectClineOrganizationAfterLogin,
+} from "./cline-account.ts";
 
 const API_BASE_URL = "https://api.cline.bot";
 const WORKOS_API_BASE_URL = "https://api.workos.com";
@@ -283,7 +287,13 @@ async function loginCline(
         expiresInSeconds: device.expiresInSeconds,
         intervalSeconds: device.intervalSeconds,
     });
-    return registerWorkOSTokens(workosTokens);
+    const credentials = await registerWorkOSTokens(workosTokens);
+    await selectClineOrganizationAfterLogin(
+        credentials,
+        callbacks,
+        getClineApiKey,
+    );
+    return credentials;
 }
 
 async function refreshClineToken(
@@ -479,4 +489,6 @@ export default async function (pi: ExtensionAPI) {
             getApiKey: getClineApiKey,
         },
     });
+
+    registerClineAccountCommand(pi);
 }
