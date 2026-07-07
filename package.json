@@ -1,5 +1,5 @@
 {
-  "name": "pi-cline",
+  "name": "@maxpaulus/pi-cline",
   "version": "0.1.0",
   "description": "Cline OAuth provider extension for pi.",
   "type": "module",
