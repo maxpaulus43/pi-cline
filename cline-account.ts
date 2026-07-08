@@ -121,7 +121,7 @@ async function fetchClineMe(token: string): Promise<ClineAccountUser> {
     return readJson<ClineAccountUser>(response);
 }
 
-async function switchClineOrganization(
+export async function switchClineOrganization(
     token: string,
     organizationId: string | null,
 ): Promise<void> {
@@ -241,17 +241,17 @@ async function loadClineAccountChoices(
             }),
         ),
     ]);
-    const organizationChoices = organizations
-        .map((organization, index) => {
+    const organizationChoices = organizations.flatMap<ClineAccountChoice>(
+        (organization, index) => {
             const organizationId = organization.organizationId?.trim();
             const label = formatOrganizationLabel(
                 organization,
                 organizationBalanceTexts[index],
             );
-            if (!organizationId || !label) return undefined;
-            return { id: organizationId, label, organization };
-        })
-        .filter((choice): choice is ClineAccountChoice => Boolean(choice));
+            if (!organizationId || !label) return [];
+            return [{ id: organizationId, label, organization }];
+        },
+    );
 
     return [
         {
@@ -284,6 +284,15 @@ async function switchClineAccountChoice(
     return organizationId
         ? (choice.organization?.name?.trim() ?? organizationId)
         : "Personal account";
+}
+
+export async function selectClinePersonalAccountAfterLogin(
+    credentials: OAuthCredentials,
+    callbacks: OAuthLoginCallbacks,
+    getApiKey: (credentials: OAuthCredentials) => string,
+): Promise<void> {
+    await switchClineOrganization(getApiKey(credentials), null);
+    callbacks.onProgress?.("Cline active account: Personal account");
 }
 
 export async function selectClineOrganizationAfterLogin(

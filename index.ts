@@ -6,8 +6,13 @@ import type {
 import {
     registerClineAccountCommand,
     selectClineOrganizationAfterLogin,
+    selectClinePersonalAccountAfterLogin,
 } from "./cline-account.ts";
-import { fetchClineModels, type PiModel } from "./cline-models.ts";
+import {
+    fetchClineModels,
+    fetchClinePassModels,
+    type PiModel,
+} from "./cline-models.ts";
 
 const API_BASE_URL = "https://api.cline.bot";
 const WORKOS_API_BASE_URL = "https://api.workos.com";
@@ -203,8 +208,13 @@ async function registerWorkOSTokens(tokens: {
     return toCredentials((await response.json()) as ClineAuthResponse);
 }
 
-async function loginCline(
+async function loginClineWithAccountSelection(
     callbacks: OAuthLoginCallbacks,
+    selectAccount: (
+        credentials: OAuthCredentials,
+        callbacks: OAuthLoginCallbacks,
+        getApiKey: (credentials: OAuthCredentials) => string,
+    ) => Promise<void>,
 ): Promise<OAuthCredentials> {
     const device = await startDeviceAuthorization();
     callbacks.onDeviceCode({
@@ -223,12 +233,26 @@ async function loginCline(
         intervalSeconds: device.intervalSeconds,
     });
     const credentials = await registerWorkOSTokens(workosTokens);
-    await selectClineOrganizationAfterLogin(
-        credentials,
-        callbacks,
-        getClineApiKey,
-    );
+    await selectAccount(credentials, callbacks, getClineApiKey);
     return credentials;
+}
+
+async function loginCline(
+    callbacks: OAuthLoginCallbacks,
+): Promise<OAuthCredentials> {
+    return loginClineWithAccountSelection(
+        callbacks,
+        selectClineOrganizationAfterLogin,
+    );
+}
+
+async function loginClinePass(
+    callbacks: OAuthLoginCallbacks,
+): Promise<OAuthCredentials> {
+    return loginClineWithAccountSelection(
+        callbacks,
+        selectClinePersonalAccountAfterLogin,
+    );
 }
 
 async function refreshClineToken(
@@ -269,6 +293,16 @@ export default async function (pi: ExtensionAPI) {
         models = [];
     }
 
+    let clinePassModels: PiModel[];
+    try {
+        clinePassModels = await fetchClinePassModels();
+    } catch (error) {
+        console.warn(
+            `[cline-pass] ${error instanceof Error ? error.message : String(error)}`,
+        );
+        clinePassModels = [];
+    }
+
     pi.registerProvider("cline", {
         name: "Cline",
         baseUrl: `${API_BASE_URL}/api/v1`,
@@ -280,6 +314,22 @@ export default async function (pi: ExtensionAPI) {
         oauth: {
             name: "Cline",
             login: loginCline,
+            refreshToken: refreshClineToken,
+            getApiKey: getClineApiKey,
+        },
+    });
+
+    pi.registerProvider("cline-pass", {
+        name: "ClinePass",
+        baseUrl: `${API_BASE_URL}/api/v1`,
+        apiKey: "$CLINE_API_KEY",
+        authHeader: true,
+        headers: headers(),
+        api: "openai-completions",
+        models: clinePassModels,
+        oauth: {
+            name: "ClinePass",
+            login: loginClinePass,
             refreshToken: refreshClineToken,
             getApiKey: getClineApiKey,
         },

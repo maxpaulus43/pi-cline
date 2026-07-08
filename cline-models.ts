@@ -36,6 +36,7 @@ type ClineModelEntry = {
 type ClineModelsPayload = {
     recommended?: ClineModelEntry[];
     free?: ClineModelEntry[];
+    clinePass?: ClineModelEntry[];
 };
 
 type ModelsDevModel = {
@@ -79,6 +80,99 @@ const DEFAULT_MODEL: Omit<PiModel, "id" | "name"> = {
     contextWindow: 128_000,
     maxTokens: 128_000,
 };
+
+const CLINE_PASS_MODELS: PiModel[] = [
+    {
+        id: "cline-pass/glm-5.2",
+        name: "GLM-5.2",
+        reasoning: true,
+        input: ["text"],
+        cost: { input: 0.9086, output: 2.8556, cacheRead: 0.16874, cacheWrite: 0 },
+        contextWindow: 1_048_576,
+        maxTokens: 131_072,
+    },
+    {
+        id: "cline-pass/kimi-k2.7-code",
+        name: "Kimi K2.7 Code",
+        reasoning: true,
+        input: ["text", "image"],
+        cost: { input: 0.74, output: 3.5, cacheRead: 0.15, cacheWrite: 0 },
+        contextWindow: 262_144,
+        maxTokens: 16_384,
+    },
+    {
+        id: "cline-pass/deepseek-v4-pro",
+        name: "DeepSeek V4 Pro",
+        reasoning: true,
+        input: ["text"],
+        cost: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 },
+        contextWindow: 1_048_576,
+        maxTokens: 384_000,
+    },
+    {
+        id: "cline-pass/deepseek-v4-flash",
+        name: "DeepSeek V4 Flash",
+        reasoning: true,
+        input: ["text"],
+        cost: { input: 0.09, output: 0.18, cacheRead: 0.018, cacheWrite: 0 },
+        contextWindow: 1_048_576,
+        maxTokens: 16_384,
+    },
+    {
+        id: "cline-pass/kimi-k2.6",
+        name: "Kimi K2.6",
+        reasoning: true,
+        input: ["text", "image"],
+        cost: { input: 0.66, output: 3.41, cacheRead: 0.14, cacheWrite: 0 },
+        contextWindow: 262_144,
+        maxTokens: 262_144,
+    },
+    {
+        id: "cline-pass/mimo-v2.5-pro",
+        name: "MiMo-V2.5-Pro",
+        reasoning: true,
+        input: ["text"],
+        cost: { input: 0.435, output: 0.87, cacheRead: 0.0036, cacheWrite: 0 },
+        contextWindow: 1_048_576,
+        maxTokens: 131_072,
+    },
+    {
+        id: "cline-pass/mimo-v2.5",
+        name: "MiMo-V2.5",
+        reasoning: true,
+        input: ["text", "image"],
+        cost: { input: 0.105, output: 0.28, cacheRead: 0.028, cacheWrite: 0 },
+        contextWindow: 32_000,
+        maxTokens: 131_072,
+    },
+    {
+        id: "cline-pass/minimax-m3",
+        name: "MiniMax-M3",
+        reasoning: true,
+        input: ["text", "image"],
+        cost: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0 },
+        contextWindow: 524_288,
+        maxTokens: 512_000,
+    },
+    {
+        id: "cline-pass/qwen3.7-plus",
+        name: "Qwen3.7 Plus",
+        reasoning: true,
+        input: ["text", "image"],
+        cost: { input: 0.32, output: 1.28, cacheRead: 0.064, cacheWrite: 0.4 },
+        contextWindow: 1_000_000,
+        maxTokens: 65_536,
+    },
+    {
+        id: "cline-pass/qwen3.7-max",
+        name: "Qwen3.7 Max",
+        reasoning: true,
+        input: ["text"],
+        cost: { input: 1.25, output: 3.75, cacheRead: 0.25, cacheWrite: 1.5625 },
+        contextWindow: 1_000_000,
+        maxTokens: 65_536,
+    },
+];
 
 function userCacheDir(): string {
     if (process.env.XDG_CACHE_HOME) return process.env.XDG_CACHE_HOME;
@@ -201,6 +295,26 @@ async function fetchRecommendedClineModels(): Promise<PiModel[]> {
     );
 }
 
+async function fetchRecommendedClinePassModels(): Promise<PiModel[]> {
+    const response = await fetch(
+        clineUrl("/api/v1/ai/cline/recommended-models"),
+    );
+    if (!response.ok) {
+        throw new Error(
+            `Failed to fetch ClinePass models: ${await readError(response)}`,
+        );
+    }
+    const payload = (await response.json()) as ClineModelsPayload;
+    const staticById = new Map(
+        CLINE_PASS_MODELS.map((model) => [model.id, model]),
+    );
+    return (payload.clinePass ?? []).map((entry) => ({
+        ...(staticById.get(entry.id) ?? DEFAULT_MODEL),
+        id: entry.id,
+        name: entry.name ?? staticById.get(entry.id)?.name ?? entry.id,
+    }));
+}
+
 async function readCachedModelsDev(): Promise<ModelsDevPayload | undefined> {
     try {
         const stats = await stat(MODELS_DEV_CACHE_PATH);
@@ -281,4 +395,14 @@ export async function fetchClineModels(): Promise<PiModel[]> {
         byId.set(model.id, { ...byId.get(model.id), ...model });
     }
     return [...byId.values()];
+}
+
+export async function fetchClinePassModels(): Promise<PiModel[]> {
+    try {
+        const liveModels = await fetchRecommendedClinePassModels();
+        if (liveModels.length > 0) return liveModels;
+    } catch {
+        // Use the bundled ClinePass catalog when live recommendations fail.
+    }
+    return CLINE_PASS_MODELS;
 }
