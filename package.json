@@ -11,6 +11,9 @@
         "pi-package",
         "pi-extension"
     ],
+    "scripts": {
+        "prepare": "node scripts/install-hook.mjs"
+    },
     "pi": {
         "extensions": [
             "./index.ts"
