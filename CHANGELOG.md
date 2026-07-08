@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.6.0 - 2026-07-08
+- Maintenance and internal improvements.
 ## 0.5.0 - 2026-07-08
 - Add cline-pass provider
 
