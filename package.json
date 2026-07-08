@@ -22,6 +22,7 @@
     },
     "files": [
         "index.ts",
-        "cline-account.ts"
+        "cline-account.ts",
+        "cline-models.ts"
     ]
 }
