@@ -1,7 +1,7 @@
 {
     "name": "@maxpaulus/pi-cline",
-    "version": "0.6.0",
-    "description": "Cline OAuth provider extension for pi.",
+    "version": "0.7.0",
+    "description": "Cline/ClinePass OAuth provider extension for pi.",
     "repository": {
         "type": "git",
         "url": "https://github.com/maxpaulus43/pi-cline"
