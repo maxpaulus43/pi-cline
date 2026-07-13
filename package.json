@@ -11,9 +11,6 @@
         "pi-package",
         "pi-extension"
     ],
-    "scripts": {
-        "prepare": "changelogger install"
-    },
     "pi": {
         "extensions": [
             "./index.ts"
