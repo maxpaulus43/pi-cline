@@ -4,7 +4,8 @@
 // version differs from HEAD (i.e. a release bump).
 //
 // Calls a local LMStudio instance (OpenAI-compatible API) to summarize
-// commit subjects into a Markdown bullet list. If LMStudio is unreachable, falls back to the raw commit subjects so the release always gets an entry.
+// commit subjects and diffs into a Markdown bullet list. If LMStudio is unreachable,
+// falls back to the raw commit subjects so the release always gets an entry.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -26,12 +27,17 @@ async function main() {
     console.log(`[changelog] version bump ${release.previous} -> ${release.next}`);
 
     const previousTag = getPreviousTag();
-    const commits = getCommitSubjects(previousTag);
+    const commits = [...getCommitSubjects(previousTag), getStagedCommitSubject()].filter(Boolean);
     const changelogSource = changelogWorthy(commits);
+    const changelogContext = [
+        `Commit subjects:\n${changelogSource}`,
+        `Committed diff:\n${getCommitDiff(previousTag)}`,
+        `Staged diff:\n${getStagedDiff()}`,
+    ].join("\n\n");
 
-    console.log(`[changelog] ${commits.length} commit(s) since ${previousTag ?? "start"}`);
+    console.log(`[changelog] ${commits.length} commit(s), including staged commit, since ${previousTag ?? "start"}`);
 
-    const summary = await summarizeOrFallback(changelogSource);
+    const summary = await summarizeOrFallback(changelogContext, changelogSource);
     const entry = formatEntry(release.next, summary);
 
     prependChangelogEntry(entry);
@@ -72,6 +78,25 @@ function getCommitSubjects(previousTag) {
     return output.split("\n").filter(Boolean);
 }
 
+function getCommitDiff(previousTag) {
+    const range = previousTag ? [`${previousTag}..HEAD`] : ["--root", "HEAD"];
+    return git(["diff", ...range]);
+}
+
+function getStagedDiff() {
+    return git(["diff", "--cached"]);
+}
+
+function getStagedCommitSubject() {
+    try {
+        const commitMessagePath = git(["rev-parse", "--git-path", "COMMIT_EDITMSG"]);
+        const message = readFileSync(commitMessagePath, "utf8");
+        return message.split("\n").find((line) => line.trim() && !line.startsWith("#"))?.trim() ?? "";
+    } catch {
+        return "";
+    }
+}
+
 function changelogWorthy(commits) {
     const meaningful = commits.filter((subject) => !/^-\s*bump\b/i.test(subject));
     const subjects = meaningful.length ? meaningful : commits;
@@ -79,12 +104,12 @@ function changelogWorthy(commits) {
     return subjects.join("\n") || MAINTENANCE_ENTRY;
 }
 
-async function summarizeOrFallback(commits) {
+async function summarizeOrFallback(context, fallback) {
     try {
-        return await summarize(commits);
+        return await summarize(context);
     } catch (error) {
         console.error(`[changelog] LMStudio unreachable (${error.message}); using raw commit list.`);
-        return commits;
+        return fallback;
     }
 }
 
