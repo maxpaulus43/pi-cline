@@ -8,7 +8,7 @@ on:
 # id-token: write is required for npm OIDC trusted publishing.
 # No NPM_TOKEN secret is needed.
 permissions:
-  contents: write # required to push the version tag
+  contents: write # required to push the version tag and create the release
   id-token: write
 
 jobs:
@@ -59,3 +59,26 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "$TAG"
           git push origin "$TAG"
+
+      - name: Create GitHub release
+        if: steps.check.outputs.should_publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.local }}
+        run: |
+          TAG="v$VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping"
+            exit 0
+          fi
+
+          if awk -v version="$VERSION" '
+            $1 == "##" && $2 == version { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md && grep -q '[^[:space:]]' release-notes.md; then
+            gh release create "$TAG" --verify-tag --notes-file release-notes.md --title "$TAG"
+          else
+            echo "Could not extract release notes for $VERSION from CHANGELOG.md; generating them instead"
+            gh release create "$TAG" --verify-tag --generate-notes --title "$TAG"
+          fi
