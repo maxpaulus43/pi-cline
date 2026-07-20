@@ -92,6 +92,15 @@ const CLINE_PASS_MODELS: PiModel[] = [
         maxTokens: 131_072,
     },
     {
+        id: "cline-pass/kimi-k3",
+        name: "Kimi K3",
+        reasoning: true,
+        input: ["text", "image"],
+        cost: { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 0 },
+        contextWindow: 1_048_576,
+        maxTokens: 131_072,
+    },
+    {
         id: "cline-pass/kimi-k2.7-code",
         name: "Kimi K2.7 Code",
         reasoning: true,
