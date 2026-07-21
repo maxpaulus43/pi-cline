@@ -1,6 +1,10 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import {
+    getClinePromptCacheCompat,
+    type ClinePromptCacheCompat,
+} from "./cline-cache.ts";
 
 const API_BASE_URL = "https://api.cline.bot";
 const MODELS_DEV_CACHE_TTL_MS = 3 * 60 * 60 * 1000;
@@ -25,6 +29,7 @@ export type PiModel = {
     };
     contextWindow: number;
     maxTokens: number;
+    compat?: ClinePromptCacheCompat;
 };
 
 type ClineModelEntry = {
@@ -81,7 +86,7 @@ const DEFAULT_MODEL: Omit<PiModel, "id" | "name"> = {
     maxTokens: 128_000,
 };
 
-const CLINE_PASS_MODELS: PiModel[] = [
+const CLINE_PASS_MODELS = ([
     {
         id: "cline-pass/glm-5.2",
         name: "GLM-5.2",
@@ -172,7 +177,12 @@ const CLINE_PASS_MODELS: PiModel[] = [
         contextWindow: 1_000_000,
         maxTokens: 65_536,
     },
-];
+] satisfies PiModel[]).map(withClinePromptCacheCompat);
+
+function withClinePromptCacheCompat(model: PiModel): PiModel {
+    const compat = getClinePromptCacheCompat(model.id, model.cost);
+    return compat ? { ...model, compat } : model;
+}
 
 function userCacheDir(): string {
     if (process.env.XDG_CACHE_HOME) return process.env.XDG_CACHE_HOME;
@@ -229,7 +239,7 @@ function modelFromModelsDev(modelId: string, model: ModelsDevModel): PiModel {
         maxInputTokens(model.limit),
     );
 
-    return {
+    return withClinePromptCacheCompat({
         id: modelId,
         name: model.name ?? modelId,
         reasoning: model.reasoning === true,
@@ -244,15 +254,15 @@ function modelFromModelsDev(modelId: string, model: ModelsDevModel): PiModel {
         maxTokens: Math.floor(
             numberOrDefault(model.limit?.output, DEFAULT_MODEL.maxTokens),
         ),
-    };
+    });
 }
 
 function modelFromClineEntry(entry: ClineModelEntry): PiModel {
-    return {
+    return withClinePromptCacheCompat({
         id: entry.id,
         name: entry.name ?? entry.id,
         ...DEFAULT_MODEL,
-    };
+    });
 }
 
 function isActiveToolModel(model: ModelsDevModel): boolean {

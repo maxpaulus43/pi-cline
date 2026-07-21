@@ -3,6 +3,7 @@ import type {
     OAuthCredentials,
     OAuthLoginCallbacks,
 } from "@earendil-works/pi-ai";
+import { normalizeClinePromptCachePayload } from "./cline-cache.ts";
 import {
     registerClineAccountCommand,
     selectClineOrganizationAfterLogin,
@@ -302,6 +303,16 @@ export default async function (pi: ExtensionAPI) {
         );
         clinePassModels = [];
     }
+
+    pi.on("before_provider_request", (event, ctx) => {
+        if (
+            ctx.model?.provider !== "cline" &&
+            ctx.model?.provider !== "cline-pass"
+        ) {
+            return;
+        }
+        return normalizeClinePromptCachePayload(event.payload);
+    });
 
     pi.registerProvider("cline", {
         name: "Cline",

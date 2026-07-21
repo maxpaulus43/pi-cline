@@ -16,6 +16,9 @@
             "./index.ts"
         ]
     },
+    "scripts": {
+        "test": "node --experimental-strip-types --test cline-cache.test.ts"
+    },
     "devDependencies": {
         "@maxpaulus/changelogger": "^0.4.0"
     },
@@ -26,6 +29,7 @@
     "files": [
         "index.ts",
         "cline-account.ts",
+        "cline-cache.ts",
         "cline-models.ts"
     ]
 }

@@ -154,6 +154,7 @@ pi --list-models cline-pass
 - Auth: WorkOS device code → Cline token register/refresh
 - Access tokens are sent as `Authorization: Bearer workos:…` (prefix added when needed)
 - Client headers include `X-CLIENT-TYPE: pi` and `User-Agent: pi-cline-oauth-extension`
+- Claude models and Qwen models with advertised cache pricing use Cline's ephemeral prompt-cache controls; other models retain their upstream automatic caching behavior
 
 Source layout:
 
