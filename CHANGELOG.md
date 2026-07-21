@@ -1,12 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 - 2026-07-21
 - Enable Cline-compatible ephemeral prompt caching for Claude and cache-capable Qwen models
 
 ## 0.8.0 - 2026-07-13
 - Create GitHub releases automatically during publishing with extracted or generated notes
+
 ## 0.6.0 - 2026-07-08
 - Maintenance and internal improvements.
+
 ## 0.5.0 - 2026-07-08
 - Add cline-pass provider
 
