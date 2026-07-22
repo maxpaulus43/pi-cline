@@ -1,10 +1,8 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import {
-    getClinePromptCacheCompat,
-    type ClinePromptCacheCompat,
-} from "./cline-cache.ts";
+import type { OpenAICompletionsCompat } from "@earendil-works/pi-ai";
+import { getClinePromptCacheCompat } from "./cline-cache.ts";
 
 const API_BASE_URL = "https://api.cline.bot";
 const MODELS_DEV_CACHE_TTL_MS = 3 * 60 * 60 * 1000;
@@ -29,7 +27,7 @@ export type PiModel = {
     };
     contextWindow: number;
     maxTokens: number;
-    compat?: ClinePromptCacheCompat;
+    compat?: OpenAICompletionsCompat;
 };
 
 type ClineModelEntry = {
@@ -95,6 +93,10 @@ const CLINE_PASS_MODELS = ([
         cost: { input: 0.9086, output: 2.8556, cacheRead: 0.16874, cacheWrite: 0 },
         contextWindow: 1_048_576,
         maxTokens: 131_072,
+        // The GLM upstream rejects the `developer` role (400: "developer is
+        // not one of ['system', 'assistant', 'user', 'tool', 'function']"),
+        // so the system prompt must be sent as a `system` message.
+        compat: { supportsDeveloperRole: false },
     },
     {
         id: "cline-pass/kimi-k2.7-code",
@@ -180,8 +182,9 @@ const CLINE_PASS_MODELS = ([
 ] satisfies PiModel[]).map(withClinePromptCacheCompat);
 
 function withClinePromptCacheCompat(model: PiModel): PiModel {
-    const compat = getClinePromptCacheCompat(model.id, model.cost);
-    return compat ? { ...model, compat } : model;
+    const cacheCompat = getClinePromptCacheCompat(model.id, model.cost);
+    if (!cacheCompat) return model;
+    return { ...model, compat: { ...model.compat, ...cacheCompat } };
 }
 
 function userCacheDir(): string {
