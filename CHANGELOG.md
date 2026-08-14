@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.1 - 2026-08-14
+- Fix `/cline-org` credential lookup with current pi versions
+
 ## 0.9.0 - 2026-07-21
 - Enable Cline-compatible ephemeral prompt caching for Claude and cache-capable Qwen models
 
