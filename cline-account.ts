@@ -97,12 +97,10 @@ async function readJson<T>(response: Response): Promise<T> {
 
 async function getClineAccountToken(ctx: {
     modelRegistry: {
-        authStorage: {
-            getApiKey(provider: string): Promise<string | undefined>;
-        };
+        getApiKeyForProvider(provider: string): Promise<string | undefined>;
     };
 }): Promise<string> {
-    const token = await ctx.modelRegistry.authStorage.getApiKey("cline");
+    const token = await ctx.modelRegistry.getApiKeyForProvider("cline");
     if (!token) {
         throw new Error(
             "No Cline OAuth credentials found. Run /login cline first.",
