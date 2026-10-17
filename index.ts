@@ -218,15 +218,24 @@ async function loginClineWithAccountSelection(
     ) => Promise<void>,
 ): Promise<OAuthCredentials> {
     const device = await startDeviceAuthorization();
-    callbacks.onDeviceCode({
+    const authUrl = device.verificationUriComplete ?? device.verificationUri;
+    // Some hosts (e.g. Oh My Pi /login) implement onAuth but not onDeviceCode.
+    callbacks.onDeviceCode?.({
         userCode: device.userCode,
         verificationUri: device.verificationUri,
         intervalSeconds: device.intervalSeconds,
         expiresInSeconds: device.expiresInSeconds,
     });
-    callbacks.onAuth({
-        url: device.verificationUriComplete ?? device.verificationUri,
-    });
+    if (typeof callbacks.onAuth === "function") {
+        callbacks.onAuth({
+            url: authUrl,
+            instructions: `Continue with Google. If asked for a device code, enter ${device.userCode}`,
+        });
+    } else {
+        callbacks.onProgress?.(
+            `Open ${authUrl} and continue with Google (code ${device.userCode})`,
+        );
+    }
 
     const workosTokens = await pollDeviceAuthorization({
         deviceCode: device.deviceCode,

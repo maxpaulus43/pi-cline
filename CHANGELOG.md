@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- Treat `onDeviceCode` / `onSelect` as optional so login works on hosts that only implement `onAuth` (e.g. Oh My Pi)
+
 ## 0.9.1 - 2026-08-14
 - Fix `/cline-org` credential lookup with current pi versions
 

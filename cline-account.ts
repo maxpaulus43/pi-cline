@@ -301,6 +301,12 @@ export async function selectClineOrganizationAfterLogin(
     const token = getApiKey(credentials);
     const choices = await loadClineAccountChoices(token);
     if (choices.length <= 1) return;
+    if (typeof callbacks.onSelect !== "function") {
+        callbacks.onProgress?.(
+            "Cline login complete. Use /cline-org later if you need to switch accounts.",
+        );
+        return;
+    }
 
     const selectedId = await callbacks.onSelect({
         message: "Choose your active Cline account",
